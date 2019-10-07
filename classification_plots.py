@@ -131,6 +131,67 @@ def ROC_horizontal_averaging():
     """
     pass
 
+def ROC_confidence_SJR_method(pred_scores, gt_labels):
+    """ One-sample Kolmogorov-Smirnov test as a method to generate 
+        confidence bounds of ROC curves.
+        Follow Macscassy and Provost paper.
+        SJR = Simultaneous Joint Confidence Regions.
+        delta is confidence level; delta=.05 --> 1-delta = 95% bound
+    
+        To Do: check formula using <<from scipy.stats import kstest>>
+    """
+    # K-S critical values
+    def get_KS_critical(instances, delta=.05):
+        return 1.36 / np.sqrt(instances)
+    
+    def get_confusion_counts(predicted_labels, test_labels):
+        model_results_paired = list(zip(predicted_labels, test_labels))   # (model, Groundtruth) tuples
+        TN = model_results_paired.count((0, 0))
+        TP = model_results_paired.count((1, 1))
+        FP = model_results_paired.count((1, 0))
+        FN = model_results_paired.count((0, 1))
+        return TP, FP, TN, FN
+    
+    # Prepare scores
+    fpr_eval_pts = np.linspace(0, 1, 21)
+    fpr, tpr, _ = roc_curve(gt_labels, pred_scores, pos_label=1)
+    # Collect critical distances in list of 2-tuples
+    # Loop through FPR pts and count TP etc. at each point, then pipe through KS somehow...
+    GT = gt_labels[fpr<.05]
+    PRED = pred_scores[fpr<.05]
+    TP, FP, TN, FN = get_confusion_counts(PRED, GT)
+    tp_ = get_KS_critical(TP)
+    # VERDERRRRRRRRRRRRRR ??!!
+
+def ROC_confidence_bootstrap(pred_scores, gt_labels, N_bootstrap=100, plot_ROC=True):
+    """ Bootstrapping among all predicted score samples OF SAME TEST SET.
+        Cheap alternative to proper bootstrap based on cross-validation!
+        See https://stackoverflow.com/questions/19124239/scikit-learn-roc-curve-with-confidence-intervals
+    """
+    bootstrap_inds = np.random.randint(0, len(pred_scores), size=(N_bootstrap, len(pred_scores)))
+    bootstrap_samples_pred_score = pred_scores[bootstrap_inds]
+    bootstrap_samples_gt_labels = gt_labels[bootstrap_inds]
+    # collect ROCs and plot
+    AUC = []
+    if plot_ROC:
+        plt.figure(figsize=(7,6))
+    for i in range(N_bootstrap):
+        # Bootstrap ROC:
+        fpr, tpr, thresholds = roc_curve(bootstrap_samples_gt_labels[i,:], bootstrap_samples_pred_score[i,:], pos_label=1)
+        AUC.append(roc_auc_score(bootstrap_samples_gt_labels[i,:], bootstrap_samples_pred_score[i,:]))
+        if plot_ROC:
+            plt.plot(fpr, tpr, 'b-', alpha=.01)
+    print('\nmean AUC = %1.3f' % np.mean(AUC))
+    print('\n95%% conf.bounds:  %1.3f -- %1.3f' % (np.percentile(AUC, 5), np.percentile(AUC, 95)))
+    return AUC
+
+def AUC_confidence_pROC():
+    """ pROC method by DeLong(1988) to get confidence bands for AUC score.
+        See https://stackoverflow.com/questions/19124239/scikit-learn-roc-curve-with-confidence-intervals
+            https://www.rdocumentation.org/packages/pROC/versions/1.13.0/topics/pROC-package
+    """
+    pass
+
 
 if __name__=='__main__':
 #    N = 200
@@ -160,5 +221,4 @@ if __name__=='__main__':
     FalseDiscovRatio = (1 - Prec) / Prec
     plt.figure(); plt.plot(Rec, FalseDiscovRatio, 'm-'); plt.xlabel('Recall', fontsize=14); plt.ylabel('FP / TP', fontsize=14); plt.title('False Discovery Ratio', fontsize=15)
     
-    
-
+    auc_samples = ROC_confidence_bootstrap(predicted_probabilities, labels_test)

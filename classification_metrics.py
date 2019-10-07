@@ -55,7 +55,7 @@ def binary_classifier_administration(predicted_labels, test_labels, verbose=Fals
     return TPR, precision, F, TNR, FDR
 
 """
-NOTA BENE: THE FOLLOWING FUNCTIONS, ALTHOUGH CORRECT, ARE NOT OPTIMAL COMPUTATIONALLY.
+NOTA BENE: THE FOLLOWING FUNCTIONS, ALTHOUGH HOPEFULLY CORRECT, ARE NOT OPTIMAL COMPUTATIONALLY.
 BETTER IS TO USE <<classification_plots.py>>
 """
 
